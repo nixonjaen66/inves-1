@@ -1,0 +1,19 @@
+{
+  "extends": "../cursor/rules/tsconfig.nest.json",
+  "compilerOptions": {
+    "declaration": false,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "test/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

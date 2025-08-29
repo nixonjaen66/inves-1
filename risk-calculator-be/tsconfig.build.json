@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": true,          // genera archivos .d.ts
+    "noEmit": false,              // permite emitir la compilación
+    "outDir": "./dist"            // salida de la build
+  },
+  "include": ["src/**/*.ts"],     // 👈 incluye TODOS los .ts en src
+  "exclude": [
+    "node_modules",
+    "test",
+    "dist",
+    "**/*.spec.ts"                // excluye pruebas unitarias
+  ]
+}
