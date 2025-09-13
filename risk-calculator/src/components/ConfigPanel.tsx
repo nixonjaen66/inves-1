@@ -1,8 +1,22 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import clsx from 'clsx';
 import type { RiskConfig } from '../risk.config';
+
+// Ensure JSX namespace exists (fixes "JSX.IntrinsicElements" missing error)
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      [elemName: string]: any;
+    }
+  }
+}
+
+// 🔧 Quita readonly de un tipo recursivamente (sin tocar risk.config)
+type Mutable<T> = {
+  -readonly [P in keyof T]: T[P] extends object ? Mutable<T[P]> : T[P];
+};
 
 interface ConfigPanelProps {
   config: RiskConfig;
@@ -11,36 +25,46 @@ interface ConfigPanelProps {
 
 export const ConfigPanel = ({ config, onConfigChange }: ConfigPanelProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [localConfig, setLocalConfig] = useState<RiskConfig>(config);
 
-  const handleThresholdChange = useCallback((key: 'low' | 'medium', value: string) => {
-    const numValue = parseFloat(value) || 0;
-    const newConfig = {
-      ...localConfig,
-      thresholds: {
-        ...localConfig.thresholds,
-        [key]: numValue,
-      },
-    };
-    setLocalConfig(newConfig);
-    onConfigChange(newConfig);
-  }, [localConfig, onConfigChange]);
+  // ⬅️ Trabajamos con una copia mutable solo en el estado local
+  const [localConfig, setLocalConfig] = useState<Mutable<RiskConfig>>(
+    JSON.parse(JSON.stringify(config)) as Mutable<RiskConfig>,
+  );
 
-  const handleWeightChange = useCallback((key: keyof RiskConfig['weights'], value: string) => {
-    const numValue = parseFloat(value) || 1.0;
-    const newConfig = {
-      ...localConfig,
-      weights: {
-        ...localConfig.weights,
-        [key]: numValue,
-      },
-    };
-    setLocalConfig(newConfig);
-    onConfigChange(newConfig);
-  }, [localConfig, onConfigChange]);
+  const handleThresholdChange = useCallback(
+    (key: 'low' | 'medium', value: string) => {
+      const numValue = parseFloat(value) || 0;
+      const newConfig: Mutable<RiskConfig> = {
+        ...localConfig,
+        thresholds: {
+          ...localConfig.thresholds,
+          [key]: numValue,
+        },
+      };
+      setLocalConfig(newConfig);
+      onConfigChange(newConfig as RiskConfig); // ← forzamos al tipo original al emitir
+    },
+    [localConfig, onConfigChange],
+  );
+
+  const handleWeightChange = useCallback(
+    (key: keyof RiskConfig['weights'], value: string) => {
+      const numValue = parseFloat(value) || 1.0;
+      const newConfig: Mutable<RiskConfig> = {
+        ...localConfig,
+        weights: {
+          ...localConfig.weights,
+          [key]: numValue,
+        },
+      };
+      setLocalConfig(newConfig);
+      onConfigChange(newConfig as RiskConfig);
+    },
+    [localConfig, onConfigChange],
+  );
 
   const handleReset = useCallback(() => {
-    const defaultConfig = {
+    const defaultConfig: Mutable<RiskConfig> = {
       thresholds: { low: 0.3, medium: 0.7 },
       weights: {
         vulnerabilityWeight: 1.0,
@@ -50,7 +74,7 @@ export const ConfigPanel = ({ config, onConfigChange }: ConfigPanelProps) => {
       },
     };
     setLocalConfig(defaultConfig);
-    onConfigChange(defaultConfig);
+    onConfigChange(defaultConfig as RiskConfig);
   }, [onConfigChange]);
 
   return (
@@ -65,18 +89,13 @@ export const ConfigPanel = ({ config, onConfigChange }: ConfigPanelProps) => {
           <svg
             className={clsx(
               'w-5 h-5 text-gray-500 transition-transform duration-200',
-              isOpen && 'rotate-90'
+              isOpen && 'rotate-90',
             )}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">
             Configuración Avanzada
@@ -90,9 +109,7 @@ export const ConfigPanel = ({ config, onConfigChange }: ConfigPanelProps) => {
       {isOpen && (
         <div id="config-content" className="px-6 pb-6 space-y-6">
           <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-            <h4 className="font-medium text-gray-900 dark:text-white mb-4">
-              Umbrales de Riesgo
-            </h4>
+            <h4 className="font-medium text-gray-900 dark:text-white mb-4">Umbrales de Riesgo</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="low-threshold" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -102,7 +119,7 @@ export const ConfigPanel = ({ config, onConfigChange }: ConfigPanelProps) => {
                   type="number"
                   id="low-threshold"
                   value={localConfig.thresholds.low}
-                  onChange={(e) => handleThresholdChange('low', e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleThresholdChange('low', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                   step="0.1"
                   min="0"
@@ -120,7 +137,7 @@ export const ConfigPanel = ({ config, onConfigChange }: ConfigPanelProps) => {
                   type="number"
                   id="medium-threshold"
                   value={localConfig.thresholds.medium}
-                  onChange={(e) => handleThresholdChange('medium', e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleThresholdChange('medium', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                   step="0.1"
                   min={localConfig.thresholds.low}
@@ -145,7 +162,7 @@ export const ConfigPanel = ({ config, onConfigChange }: ConfigPanelProps) => {
                   type="number"
                   id="vulnerability-weight"
                   value={localConfig.weights.vulnerabilityWeight}
-                  onChange={(e) => handleWeightChange('vulnerabilityWeight', e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleWeightChange('vulnerabilityWeight', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                   step="0.1"
                   min="0"
@@ -159,7 +176,7 @@ export const ConfigPanel = ({ config, onConfigChange }: ConfigPanelProps) => {
                   type="number"
                   id="threat-weight"
                   value={localConfig.weights.threatWeight}
-                  onChange={(e) => handleWeightChange('threatWeight', e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleWeightChange('threatWeight', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                   step="0.1"
                   min="0"
@@ -173,7 +190,7 @@ export const ConfigPanel = ({ config, onConfigChange }: ConfigPanelProps) => {
                   type="number"
                   id="impact-weight"
                   value={localConfig.weights.impactWeight}
-                  onChange={(e) => handleWeightChange('impactWeight', e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleWeightChange('impactWeight', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                   step="0.1"
                   min="0"
@@ -187,7 +204,7 @@ export const ConfigPanel = ({ config, onConfigChange }: ConfigPanelProps) => {
                   type="number"
                   id="mitigation-weight"
                   value={localConfig.weights.mitigationWeight}
-                  onChange={(e) => handleWeightChange('mitigationWeight', e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleWeightChange('mitigationWeight', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                   step="0.1"
                   min="0"
